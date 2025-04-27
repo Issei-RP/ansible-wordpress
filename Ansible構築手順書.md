@@ -292,5 +292,7 @@ webサーバーの外部IPアドレスにブラウザからアクセスする
 
 http://webサーバーのIPアドレス  
 
-WordpressのWelcomeページが表示されれば構築成功
+下記のようにWordpressのWelcomeページが表示されれば構築成功  
 
+
+<img src="wp_build.png">
