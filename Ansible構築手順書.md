@@ -295,4 +295,4 @@ http://webサーバーのIPアドレス
 下記のようにWordpressのWelcomeページが表示されれば構築成功  
 
 
-<img src="wp_build.png">
+<img src="/wp_build.png">
