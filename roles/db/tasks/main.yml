@@ -1,0 +1,74 @@
+- name: Install MariaDB server and client
+  ansible.builtin.dnf:
+    name:
+      - mariadb105-server
+      - mariadb105
+    state: present
+  become: yes
+
+- name: Start and enable MariaDB service
+  ansible.builtin.service:
+    name: mariadb
+    state: started
+    enabled: true
+  become: yes
+
+- name: Install pip3
+  ansible.builtin.dnf:
+    name: python3-pip
+    state: present
+  become: yes
+
+- name: Install PyMySQL via pip
+  ansible.builtin.pip:
+    name: PyMySQL
+    executable: pip3
+  become: yes
+
+# --- ここから条件分岐追加 ---
+
+- name: Check if MySQL root password is already set
+  ansible.builtin.stat:
+    path: /root/.mysql_password_set
+  register: mysql_password_already_set
+  become: yes
+
+- name: Allow root user to use password authentication (disable unix_socket plugin)
+  community.mysql.mysql_user:
+    name: root
+    host: localhost
+    plugin: mysql_native_password
+    password: "{{ wordpress_db_password }}"
+    login_unix_socket: /var/lib/mysql/mysql.sock
+    check_implicit_admin: true
+    state: present
+  when: not mysql_password_already_set.stat.exists
+  become: yes
+
+- name: Create a marker file after setting root password
+  ansible.builtin.file:
+    path: /root/.mysql_password_set
+    state: touch
+  when: not mysql_password_already_set.stat.exists
+  become: yes
+
+# --- ここまでが初回だけ実行される ---
+
+- name: Create WordPress database
+  community.mysql.mysql_db:
+    name: "{{ wordpress_db_name }}"
+    state: present
+    login_user: root
+    login_password: "{{ wordpress_db_password }}"
+  become: yes
+
+- name: Create WordPress database user
+  community.mysql.mysql_user:
+    name: "{{ wordpress_db_user }}"
+    password: "{{ wordpress_db_password }}"
+    priv: "{{ wordpress_db_name }}.*:ALL"
+    host: "%"
+    state: present
+    login_user: root
+    login_password: "{{ wordpress_db_password }}"
+  become: yes

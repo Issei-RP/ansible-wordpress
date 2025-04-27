@@ -1,0 +1,7 @@
+[db]
+db
+# host_vars/db.yml
+
+[web]
+web
+# host_vars/web.yml
