@@ -1,7 +1,29 @@
+# Ansibleを使ったWordPress環境構築手順書
+## 前提条件
+- Ansibleがインストールされたローカルマシンまたは管理サーバーを使用すること
+
+- AWS上にOSの異なる管理対象のサーバー2台が用意されていること
+  - dbサーバー（例：Amazon Linux 2023）
+  - webサーバー（例：Ubuntu 22.04）
+
+- 各サーバーともに外部IPアドレス、内部IPアドレスが分かっていること
+
+- それぞれのサーバーの必要なセキュリティグループが解放されていること
+
+- SSH秘密鍵（pemファイル等）がローカルマシンに配置されていること
+
+## 手順
+### 1. ディレクトリ構成の作成
+```bash
 mkdir -p ~/ansible-wordpress
 cd ~/ansible-wordpress
+mkdir -p host_vars group_vars
+```
 
+### 2. インベントリファイルの作成
+```bash
 vi inventory
+```
 ```ini
 [db]
 db
@@ -11,23 +33,32 @@ db
 web
 # host_vars/web.yml
 ```
-mkdir -p host_vars
+
+### 3. ホスト変数ファイルの作成
+```bash
 vi group_vars/db.yml
+```
+dbサーバー用の設定値
 ```yml
 ansible_host: dbサーバーの外部IPアドレス  
 ansible_user: dbサーバーのホスト名
 ansible_ssh_private_key_file: dbサーバーのssh認証鍵のパス
 ```
 
+webサーバー用の設定値
+```bash
 vi group_vars/web.yml
+```
 ```yml
 ansible_host: webサーバーの外部IPアドレス  
 ansible_user: webサーバーのホスト名
 ansible_ssh_private_key_file: webサーバーのssh認証鍵のパス
 ```
 
-mkdir -p group_vars
+### 4. グループ変数ファイルの作成
+```bash
 vi group_vars/all.yml
+```
 ```yml
 wordpress_db_name: wordpress
 wordpress_db_user: root
@@ -45,21 +76,22 @@ ubuntu_packages:
   - php-xml
   - php-mbstring
 ```
-
+### 5. 接続確認
+以下のコマンドでAnsibleからサーバーへの接続確認　　
 ```shell
 ansible -i inventory all -m ping
 ```
-で疎通確認する。下記のように表示されれば問題なし。  
+で疎通確認する。下記のように表示されれば問題なし　
 
 ```shell
-amazonlinux | SUCCESS => {
+db | SUCCESS => {
     "ansible_facts": {
         "discovered_interpreter_python": "/usr/bin/python3.9"
     },
     "changed": false,
     "ping": "pong"
 }
-ubuntu | SUCCESS => {
+web | SUCCESS => {
     "ansible_facts": {
         "discovered_interpreter_python": "/usr/bin/python3"
     },
@@ -67,11 +99,15 @@ ubuntu | SUCCESS => {
     "ping": "pong"
 }
 ```
-
-mkdir -p roles/ubuntu/tasks roles/amazonlinux/tasks templates
-
+### 6. playbookに必要なディレクトリの作成
+```bash
+mkdir -p roles/db/tasks roles/web/tasks templates
+```
+### 7. テンプレートファイルの作成
+WordPress設定用ファイルのテンプレートを作成
+```bash
 vi templates/wp-config.php.j2
-
+```
 ```php
 <?php
 define('DB_NAME', '{{ wordpress_db_name }}');
@@ -87,7 +123,10 @@ if ( !defined('ABSPATH') )
 require_once(ABSPATH . 'wp-settings.php');
 ?>
 ```
+nginx設定用ファイルのテンプレートを作成
+```bash
 vi templates/nginx.conf.j2
+```
 
 ```conf
 server {
@@ -106,7 +145,12 @@ server {
     }
 }
 ```
+
+### 8. ロールの作成
+dbサーバー用ロールの作成
+```bash
 vi roles/db/tasks/main.yml
+```
 
 ```yml
 - name: Install MariaDB server and client
@@ -136,7 +180,7 @@ vi roles/db/tasks/main.yml
     executable: pip3
   become: yes
 
-# --- ここから条件分岐追加 ---
+# --- ここから条件分岐 ---
 
 - name: Check if MySQL root password is already set
   ansible.builtin.stat:
@@ -185,7 +229,10 @@ vi roles/db/tasks/main.yml
   become: yes
 
 ```
+webサーバー用ロール
+```bash
 vi roles/web/tasks/main.yml
+```
 
 ```yml
 - name: Install packages
@@ -220,6 +267,7 @@ vi roles/web/tasks/main.yml
     name: nginx
     state: restarted
 ```
+### 9. site.ymlの作成
 vi site.yml
 ```yml
 ---
@@ -233,9 +281,16 @@ vi site.yml
   roles:
     - web
 ```
-
+### 10. Playbookの実行
+以下のコマンドでPlaybookを実行する。
+```bash
 ansible-playbook -i inventory site.yml
+```
 
-ブラウザを開き、http://webサーバーの外部IPアドレスで検索する。  
-WordpressのWelcomeページが表示されれば構築完了
+### 11. ブラウザ確認
+webサーバーの外部IPアドレスにブラウザからアクセスする  
+
+http://webサーバーのIPアドレス  
+
+WordpressのWelcomeページが表示されれば構築成功
 
