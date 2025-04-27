@@ -25,7 +25,7 @@
     executable: pip3
   become: yes
 
-# --- ここから条件分岐追加 ---
+# --- ここから条件分岐 ---
 
 - name: Check if MySQL root password is already set
   ansible.builtin.stat:
