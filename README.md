@@ -27,7 +27,8 @@ ansible-wordpress/
 │   ├── db.yml
 │   └── web.yml
 ├── group_vars/            # 全ホスト共通の変数管理
-│   └── all.yml
+│   └── packages.yml
+│   └── secrets.yml        # DBの認証情報と内部IPアドレス(gitignoreを適用)
 ├── templates/             # WordPress・nginx設定ファイルのテンプレート
 │   ├── wp-config.php.j2
 │   └── nginx.conf.j2
